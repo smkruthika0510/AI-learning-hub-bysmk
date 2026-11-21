@@ -21,7 +21,7 @@ I designed and built AI Learning Hub, a web-based learning platform that turns l
 
 | Processing | Summary |
 |---|---|
-| ![Processing](docs/screenshots/processing.png) | ![Summary](docs/screenshots/summary.png) |
+| ![Processing] | ![Summary](docs/screenshots/summary.png) |
 
 | Notes | Quiz |
 |---|---|
@@ -29,7 +29,7 @@ I designed and built AI Learning Hub, a web-based learning platform that turns l
 
 | Score and review | My lectures |
 |---|---|
-| ![Score](docs/screenshots/score.png) | ![History](docs/screenshots/history.png) |
+| ![Score] | ![History](docs/screenshots/history.png) |
 
 ## My role
 
