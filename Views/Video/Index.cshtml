@@ -1,0 +1,223 @@
+﻿@model LMS.ViewModels.VideoInputViewModel
+
+@{
+    ViewData["Title"] = "New lecture";
+}
+
+<div class="page-head">
+    <div>
+        <h1>Turn a lecture into study material</h1>
+        <p>Upload a recording or paste a YouTube link. You get a summary, revision notes and a practice quiz.</p>
+    </div>
+</div>
+
+<div class="upload-grid">
+
+    <section class="panel" aria-labelledby="addTitle">
+
+        <h2 class="panel-title" id="addTitle">Add your lecture</h2>
+
+        <form asp-controller="Video"
+              asp-action="ProcessVideo"
+              method="post"
+              enctype="multipart/form-data"
+              id="uploadForm"
+              novalidate>
+
+            @Html.AntiForgeryToken()
+
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div asp-validation-summary="All" class="form-alert show"></div>
+            }
+
+            <div class="form-alert" id="formError" role="alert"></div>
+
+            <div class="mode-switch" role="tablist" aria-label="Lecture source">
+                <button type="button" class="active" data-mode="file" role="tab" aria-selected="true">
+                    <i class="bi bi-file-earmark-play"></i> Upload a file
+                </button>
+                <button type="button" data-mode="link" role="tab" aria-selected="false">
+                    <i class="bi bi-link-45deg"></i> YouTube link
+                </button>
+            </div>
+
+            <div id="panel-file">
+                <div class="dropzone" id="dropzone">
+                    <i class="bi bi-cloud-arrow-up dz-icon"></i>
+                    <h3>Drop your lecture video here</h3>
+                    <p>or click to choose a file from your computer</p>
+                    <input asp-for="VideoFile" type="file" accept="video/*" aria-label="Lecture video file" />
+                </div>
+
+                <div class="file-chip" id="fileChip">
+                    <i class="bi bi-camera-video"></i>
+                    <span id="fileName"></span>
+                    <small id="fileSize"></small>
+                </div>
+
+                <p class="hint">Video files up to 2 GB. Shorter lectures finish faster.</p>
+            </div>
+
+            <div id="panel-link" hidden>
+                <label class="field-label" for="VideoUrl">YouTube link</label>
+                <input asp-for="VideoUrl"
+                       class="form-control"
+                       type="url"
+                       inputmode="url"
+                       placeholder="https://www.youtube.com/watch?v=..." />
+                <p class="hint">We download the audio only, so long videos are fine.</p>
+            </div>
+
+            <div class="mt-4">
+                <button type="submit" class="btn btn-brand btn-lg" id="submitBtn">
+                    <i class="bi bi-stars"></i>
+                    <span id="submitLabel">Generate study material</span>
+                </button>
+            </div>
+
+        </form>
+    </section>
+
+    <aside class="panel" aria-labelledby="getTitle">
+        <h2 class="panel-title" id="getTitle">What you will get</h2>
+
+        <ul class="output-list">
+            <li>
+                <div class="ico"><i class="bi bi-card-text"></i></div>
+                <div>
+                    <strong>Summary</strong>
+                    <span>The whole lecture in a few readable paragraphs.</span>
+                </div>
+            </li>
+            <li>
+                <div class="ico"><i class="bi bi-journal-bookmark"></i></div>
+                <div>
+                    <strong>Revision notes</strong>
+                    <span>Topic by topic, with definitions, syntax and examples when the lecture covers them.</span>
+                </div>
+            </li>
+            <li>
+                <div class="ico"><i class="bi bi-patch-question"></i></div>
+                <div>
+                    <strong>Practice quiz</strong>
+                    <span>Multiple-choice questions with instant scoring.</span>
+                </div>
+            </li>
+        </ul>
+
+        <p class="hint mt-3 mb-0">Processing takes a few minutes. You can follow the progress on the next screen.</p>
+    </aside>
+
+</div>
+
+@section Scripts {
+    <script>
+        (function() {
+            var form = document.getElementById('uploadForm');
+            var fileInput = document.getElementById('VideoFile');
+            var urlInput = document.getElementById('VideoUrl');
+            var dropzone = document.getElementById('dropzone');
+            var chip = document.getElementById('fileChip');
+            var nameEl = document.getElementById('fileName');
+            var sizeEl = document.getElementById('fileSize');
+            var errorEl = document.getElementById('formError');
+            var submitBtn = document.getElementById('submitBtn');
+            var submitLabel = document.getElementById('submitLabel');
+            var mode = 'file';
+
+            function showError(msg) {
+                errorEl.textContent = msg;
+                errorEl.classList.add('show');
+            }
+
+            function clearError() {
+                errorEl.textContent = '';
+                errorEl.classList.remove('show');
+            }
+
+            function clearFile() {
+                fileInput.value = '';
+                chip.classList.remove('show');
+            }
+
+            function setMode(next) {
+                mode = next;
+                document.querySelectorAll('[data-mode]').forEach(function(b) {
+                    var on = b.getAttribute('data-mode') === next;
+                    b.classList.toggle('active', on);
+                    b.setAttribute('aria-selected', on ? 'true' : 'false');
+                });
+                document.getElementById('panel-file').hidden = next !== 'file';
+                document.getElementById('panel-link').hidden = next !== 'link';
+
+                // Only one source is sent, so clear the other one.
+                if (next === 'file') { urlInput.value = ''; } else { clearFile(); }
+                clearError();
+            }
+
+            document.querySelectorAll('[data-mode]').forEach(function(b) {
+                b.addEventListener('click', function() { setMode(b.getAttribute('data-mode')); });
+            });
+
+            function formatSize(bytes) {
+                if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(2) + ' GB';
+                if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
+                return Math.max(1, Math.round(bytes / 1024)) + ' KB';
+            }
+
+            function showFile() {
+                var f = fileInput.files && fileInput.files[0];
+                if (!f) { chip.classList.remove('show'); return; }
+                nameEl.textContent = f.name;
+                sizeEl.textContent = formatSize(f.size);
+                chip.classList.add('show');
+                clearError();
+            }
+
+            fileInput.addEventListener('change', showFile);
+
+            ['dragenter', 'dragover'].forEach(function(ev) {
+                dropzone.addEventListener(ev, function(e) {
+                    e.preventDefault();
+                    dropzone.classList.add('drag');
+                });
+            });
+
+            ['dragleave', 'drop'].forEach(function(ev) {
+                dropzone.addEventListener(ev, function() { dropzone.classList.remove('drag'); });
+            });
+
+            dropzone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                if (e.dataTransfer && e.dataTransfer.files.length) {
+                    fileInput.files = e.dataTransfer.files;
+                    showFile();
+                }
+            });
+
+            form.addEventListener('submit', function(e) {
+                var hasFile = fileInput.files && fileInput.files.length > 0;
+                var url = urlInput.value.trim();
+
+                if (mode === 'file' && !hasFile) {
+                    e.preventDefault();
+                    showError('Choose a lecture video to continue.');
+                    return;
+                }
+
+                if (mode === 'link' && !url) {
+                    e.preventDefault();
+                    showError('Paste a YouTube link to continue.');
+                    return;
+                }
+
+                submitBtn.disabled = true;
+                submitLabel.textContent = mode === 'file' ? 'Uploading lecture...' : 'Starting...';
+            });
+
+            // If the server sent the form back with a URL filled in, open the link tab.
+            if (urlInput.value.trim()) { setMode('link'); }
+        })();
+    </script>
+}

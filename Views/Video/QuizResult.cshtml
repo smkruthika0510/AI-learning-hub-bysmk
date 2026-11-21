@@ -1,0 +1,88 @@
+﻿@using System.Globalization
+@model LMS.ViewModels.QuizResultViewModel
+
+@{
+    ViewData["Title"] = "Quiz result";
+
+    var pct = Model.Percentage;
+    var pctText = pct.ToString("0.##", CultureInfo.InvariantCulture);
+
+    string headline = pct >= 80
+        ? "Strong result"
+        : pct >= 50
+            ? "Good progress"
+            : "Worth another pass";
+
+    string advice = pct >= 80
+        ? "You have a solid grasp of this lecture."
+        : pct >= 50
+            ? "Review the questions you missed below, then retake the quiz."
+            : "Read the notes again, then retake the quiz.";
+}
+
+<div class="page-head">
+    <div>
+        <h1>Quiz result</h1>
+        <p>Here is how you did, with the correct answer for every question you missed.</p>
+    </div>
+</div>
+
+<section class="panel mb-4">
+    <div class="score-card">
+
+        <div class="ring" style="--pct:@pctText" role="img" aria-label="Score @pctText percent">
+            <div>@(Math.Round(pct).ToString("0", CultureInfo.InvariantCulture))%</div>
+        </div>
+
+        <div>
+            <h2>@headline</h2>
+            <p>
+                You answered <strong>@Model.CorrectAnswers</strong> of <strong>@Model.TotalQuestions</strong> correctly.
+                @advice
+            </p>
+
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-brand" onclick="history.back()">
+                    <i class="bi bi-arrow-counterclockwise"></i> Retake quiz
+                </button>
+                <a asp-action="History" class="btn btn-line">
+                    <i class="bi bi-collection-play"></i> My lectures
+                </a>
+                <a asp-action="Index" class="btn btn-line">
+                    <i class="bi bi-plus-lg"></i> New lecture
+                </a>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<h2 class="h4 mb-3">Review</h2>
+
+@{
+    int n = 1;
+}
+@foreach (var r in Model.Results)
+{
+    <article class="review @(r.IsCorrect ? "ok" : "wrong")">
+        <h3>@n. @r.Question</h3>
+
+        <div class="line">
+            <b>Your answer</b>
+            <span class="@(r.IsCorrect ? "good-text" : "bad-text")">
+                <i class="bi @(r.IsCorrect ? "bi-check-circle-fill" : "bi-x-circle-fill")"></i>
+                @r.SelectedAnswer
+            </span>
+        </div>
+
+        @if (!r.IsCorrect)
+        {
+            <div class="line">
+                <b>Correct answer</b>
+                <span class="good-text">@r.CorrectAnswer</span>
+            </div>
+        }
+    </article>
+
+    n++;
+}

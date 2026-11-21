@@ -1,0 +1,38 @@
+﻿# ---------- .NET / Visual Studio ----------
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.userprefs
+*.rsuser
+publish/
+*.log
+
+# ---------- Python ----------
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# ---------- Uploaded media (can be huge) ----------
+**/wwwroot/uploads/*
+!**/wwwroot/uploads/.gitkeep
+
+# ---------- Generated while the app runs ----------
+**/AI/transcript.txt
+**/AI/title.txt
+**/AI/summary.txt
+**/AI/summary.json
+**/AI/notes.json
+**/AI/quiz.json
+**/AI/final_output.json
+**/AI/quiz_raw_output.txt
+**/AI/quiz_invalid_output.txt
+**/AI/model_output.txt
+
+# ---------- Local files ----------
+LMSDB_GenerateScriptReport*
+appsettings.Development.json
+appsettings.Local.json
+.env

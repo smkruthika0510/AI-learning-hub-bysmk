@@ -1,0 +1,111 @@
+﻿@model List<LMS.Models.Video>
+
+@{
+    ViewData["Title"] = "My lectures";
+}
+
+<div class="page-head">
+    <div>
+        <h1>My lectures</h1>
+        <p>
+            @if (Model.Any())
+            {
+                <text>@Model.Count processed @(Model.Count == 1 ? "lecture" : "lectures"). Open one to read the summary, notes and quiz.</text>
+            }
+            else
+            {
+                <text>Lectures you process will appear here.</text>
+            }
+        </p>
+    </div>
+    <div>
+        <a asp-controller="Video" asp-action="Index" class="btn btn-brand">
+            <i class="bi bi-plus-lg"></i> New lecture
+        </a>
+    </div>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="panel empty">
+        <i class="bi bi-collection-play"></i>
+        <h2>No lectures yet</h2>
+        <p>Upload a recording or paste a YouTube link to create your first set of study material.</p>
+        <a asp-controller="Video" asp-action="Index" class="btn btn-brand">Add a lecture</a>
+    </div>
+}
+else
+{
+    <div class="toolbar">
+        <div class="search-box">
+            <i class="bi bi-search"></i>
+            <input type="search" id="lectureSearch" class="form-control" placeholder="Search lectures" aria-label="Search lectures" />
+        </div>
+    </div>
+
+    <div class="lecture-list" id="lectureList">
+        @foreach (var video in Model)
+        {
+            var title = string.IsNullOrWhiteSpace(video.Title) ? "Untitled lecture" : video.Title;
+            var isLink = string.Equals(video.SourceType, "Link", StringComparison.OrdinalIgnoreCase);
+
+            <article class="lecture" data-title="@title.ToLowerInvariant()">
+                <div class="ico"><i class="bi @(isLink ? "bi-youtube" : "bi-file-earmark-play")"></i></div>
+
+                <div>
+                    <h3>@title</h3>
+                    <div class="meta">
+                        @video.CreatedAt.ToString("dd MMM yyyy, hh:mm tt")
+                        <span class="tag">@(isLink ? "YouTube" : "Upload")</span>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <a asp-action="ViewVideo" asp-route-id="@video.Id" class="btn btn-brand btn-sm">
+                        <i class="bi bi-eye"></i> Open
+                    </a>
+                    <a asp-action="DownloadPdf" asp-route-id="@video.Id" class="btn btn-line btn-sm">
+                        <i class="bi bi-file-earmark-pdf"></i> PDF
+                    </a>
+                    <a asp-action="DeleteVideo" asp-route-id="@video.Id"
+                       class="btn btn-danger-line btn-sm"
+                       data-title="@title"
+                       onclick="return confirm('Delete &quot;' + this.getAttribute('data-title') + '&quot;? This also removes its quiz.');">
+                        <i class="bi bi-trash"></i> Delete
+                    </a>
+                </div>
+            </article>
+        }
+    </div>
+
+    <div class="panel empty" id="noMatch" hidden>
+        <i class="bi bi-search"></i>
+        <h2>No matching lectures</h2>
+        <p>Try a different word from the lecture title.</p>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        (function () {
+            var input = document.getElementById('lectureSearch');
+            if (!input) return;
+
+            var rows = document.querySelectorAll('#lectureList .lecture');
+            var empty = document.getElementById('noMatch');
+
+            input.addEventListener('input', function () {
+                var q = input.value.trim().toLowerCase();
+                var shown = 0;
+
+                rows.forEach(function (row) {
+                    var match = !q || row.getAttribute('data-title').indexOf(q) > -1;
+                    row.style.display = match ? '' : 'none';
+                    if (match) shown++;
+                });
+
+                empty.hidden = shown !== 0;
+            });
+        })();
+    </script>
+}

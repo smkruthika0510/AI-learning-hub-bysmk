@@ -1,0 +1,130 @@
+﻿@model string
+
+@{
+    ViewData["Title"] = "Processing";
+}
+
+<div class="process-wrap">
+
+    <div class="panel">
+
+        <h1 class="h3 mb-1" id="headline">Processing your lecture</h1>
+        <p class="mb-0 text-muted" id="msg" aria-live="polite">Starting...</p>
+
+        <ol class="stage-list" id="stages">
+            <li class="stage"><span class="dot"></span><span class="label">Prepare the audio<span class="sub">Download from YouTube or read your upload</span></span></li>
+            <li class="stage"><span class="dot"></span><span class="label">Transcribe the speech<span class="sub">The longest step for long lectures</span></span></li>
+            <li class="stage"><span class="dot"></span><span class="label">Write the summary</span></li>
+            <li class="stage"><span class="dot"></span><span class="label">Build the revision notes</span></li>
+            <li class="stage"><span class="dot"></span><span class="label">Create the quiz</span></li>
+            <li class="stage"><span class="dot"></span><span class="label">Save everything</span></li>
+        </ol>
+
+        <div class="error-box" id="err" role="alert">
+            <strong>This lecture could not be processed</strong>
+            <span id="errText"></span>
+        </div>
+
+        <div class="process-foot">
+            <span>Time elapsed: <b id="elapsed">0:00</b></span>
+            <span id="leaveNote">You can leave this page. The lecture appears in My lectures when it finishes.</span>
+            <a id="retry" asp-action="Index" class="btn btn-brand" style="display:none">Try again</a>
+        </div>
+
+    </div>
+
+</div>
+
+@section Scripts {
+    <script>
+        (function() {
+            var jobId = "@Model";
+            var statusUrl = '@Url.Action("Status", "Video")';
+            var viewUrl = '@Url.Action("ViewVideo", "Video")';
+
+            var stageEls = document.querySelectorAll('#stages .stage');
+            var startedAt = Date.now();
+
+            function stageOf(message) {
+                var m = (message || '').toLowerCase();
+                if (m.indexOf('transcrib') > -1) return 1;
+                if (m.indexOf('starting ai') > -1) return 2;
+                if (m.indexOf('summary') > -1) return 2;
+                if (m.indexOf('notes') > -1) return 3;
+                if (m.indexOf('quiz') > -1) return 4;
+                if (m.indexOf('combining') > -1 || m.indexOf('saving') > -1 || m.indexOf('done') > -1) return 5;
+                return 0;
+            }
+
+            function render(current, finished) {
+                stageEls.forEach(function(el, i) {
+                    var dot = el.querySelector('.dot');
+                    el.classList.remove('done', 'current');
+
+                    if (finished || i < current) {
+                        el.classList.add('done');
+                        dot.innerHTML = '<i class="bi bi-check-lg"></i>';
+                    } else if (i === current) {
+                        el.classList.add('current');
+                        dot.innerHTML = '<span class="spin"></span>';
+                    } else {
+                        dot.innerHTML = '';
+                    }
+                });
+            }
+
+            function tick() {
+                var s = Math.floor((Date.now() - startedAt) / 1000);
+                var mm = Math.floor(s / 60);
+                var ss = String(s % 60).padStart(2, '0');
+                document.getElementById('elapsed').textContent = mm + ':' + ss;
+            }
+
+            var timer = setInterval(tick, 1000);
+            render(0, false);
+
+            function fail(text) {
+                clearInterval(timer);
+                stageEls.forEach(function(el) {
+                    var dot = el.querySelector('.dot');
+                    if (el.classList.contains('current')) { dot.innerHTML = '<i class="bi bi-x-lg"></i>'; }
+                });
+                document.getElementById('headline').textContent = 'Processing stopped';
+                document.getElementById('msg').textContent = '';
+                document.getElementById('errText').textContent = text || 'Something went wrong while processing.';
+                document.getElementById('err').classList.add('show');
+                document.getElementById('leaveNote').style.display = 'none';
+                document.getElementById('retry').style.display = 'inline-block';
+            }
+
+            async function poll() {
+                try {
+                    var res = await fetch(statusUrl + '?id=' + encodeURIComponent(jobId), { cache: 'no-store' });
+                    var data = await res.json();
+
+                    document.getElementById('msg').textContent = data.message || '';
+
+                    if (data.status === 'Done' && data.videoId) {
+                        clearInterval(timer);
+                        render(5, true);
+                        document.getElementById('headline').textContent = 'Your study material is ready';
+                        window.location.href = viewUrl + '?id=' + data.videoId;
+                        return;
+                    }
+
+                    if (data.status === 'Failed') {
+                        fail(data.error);
+                        return;
+                    }
+
+                    render(stageOf(data.message), false);
+                } catch (e) {
+                    // Network hiccup: keep polling.
+                }
+                setTimeout(poll, 3000);
+            }
+
+            poll();
+        })();
+    </script>
+}

@@ -1,0 +1,241 @@
+﻿@model LMS.ViewModels.VideoResultViewModel
+
+@{
+    ViewData["Title"] = string.IsNullOrWhiteSpace(Model.Title) ? "Lecture" : Model.Title;
+
+    var paragraphs = (Model.Summary ?? "")
+        .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    int wordCount = (Model.Summary ?? "")
+        .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+    int readMinutes = Math.Max(1, (int)Math.Ceiling(wordCount / 200.0));
+
+    var questions = Model.QuizQuestions ?? new List<LMS.Models.QuizQuestion>();
+    var notes = Model.Notes ?? new List<LMS.Models.AINote>();
+    var letters = new[] { "A", "B", "C", "D" };
+}
+
+<a asp-action="History" class="crumb"><i class="bi bi-arrow-left"></i> My lectures</a>
+
+<div class="page-head">
+    <div>
+        <h1>@(string.IsNullOrWhiteSpace(Model.Title) ? "Untitled lecture" : Model.Title)</h1>
+        <ul class="stat-row">
+            <li><i class="bi bi-clock"></i>@readMinutes min summary</li>
+            <li><i class="bi bi-journal-bookmark"></i>@notes.Count @(notes.Count == 1 ? "topic" : "topics")</li>
+            <li><i class="bi bi-patch-question"></i>@questions.Count @(questions.Count == 1 ? "question" : "questions")</li>
+        </ul>
+    </div>
+    <div>
+        <a asp-action="DownloadPdf" asp-route-id="@Model.Id" class="btn btn-brand">
+            <i class="bi bi-file-earmark-pdf"></i> Download PDF
+        </a>
+    </div>
+</div>
+
+<ul class="nav tabbar" id="resultTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button type="button" class="nav-link active" data-bs-toggle="tab" data-bs-target="#summary" role="tab">Summary</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button type="button" class="nav-link" data-bs-toggle="tab" data-bs-target="#notes" role="tab">
+            Notes <span class="count">@notes.Count</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button type="button" class="nav-link" data-bs-toggle="tab" data-bs-target="#quiz" role="tab">
+            Quiz <span class="count">@questions.Count</span>
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content">
+
+    @* ---------------- SUMMARY ---------------- *@
+    <div class="tab-pane fade show active" id="summary" role="tabpanel">
+        <div class="panel">
+            <div class="panel-head">
+                <h2>Lecture summary</h2>
+                <button type="button" class="btn btn-line btn-sm" id="copySummary">
+                    <i class="bi bi-copy"></i> <span>Copy</span>
+                </button>
+            </div>
+
+            <div class="reading" id="summaryText">
+                @if (paragraphs.Length == 0)
+                {
+                    <p>No summary was generated for this lecture.</p>
+                }
+                else
+                {
+                    foreach (var p in paragraphs)
+                    {
+                        <p>@p</p>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+
+    @* ---------------- NOTES ---------------- *@
+    <div class="tab-pane fade" id="notes" role="tabpanel">
+
+        @if (notes.Count == 0)
+        {
+            <div class="panel"><p class="mb-0">No notes were generated for this lecture.</p></div>
+        }
+        else
+        {
+            if (notes.Count > 1)
+            {
+                <nav class="topic-nav" aria-label="Topics">
+                    @for (int t = 0; t < notes.Count; t++)
+                    {
+                        <a href="#topic-@t">@notes[t].Title</a>
+                    }
+                </nav>
+            }
+
+            @for (int t = 0; t < notes.Count; t++)
+            {
+                var note = notes[t];
+                <section class="topic" id="topic-@t">
+                    <h3>@note.Title</h3>
+                    <dl>
+                        @foreach (var part in note.Content)
+                        {
+                            bool hasHeading = !string.IsNullOrWhiteSpace(part.Heading);
+                            <div class="row-item @(hasHeading ? "" : "no-heading")">
+                                @if (hasHeading)
+                                {
+                                    <dt>@part.Heading</dt>
+                                }
+                                <dd>@part.Text</dd>
+                            </div>
+                        }
+                    </dl>
+                </section>
+            }
+        }
+    </div>
+
+    @* ---------------- QUIZ ---------------- *@
+    <div class="tab-pane fade" id="quiz" role="tabpanel">
+
+        @if (questions.Count == 0)
+        {
+            <div class="panel"><p class="mb-0">No quiz questions are available for this lecture.</p></div>
+        }
+        else
+        {
+            <form asp-controller="Video" asp-action="SubmitQuiz" method="post" id="quizForm">
+
+                <input type="hidden" name="videoId" value="@Model.Id" />
+
+                <div class="quiz-progress">
+                    <span id="answeredLabel">0 of @questions.Count answered</span>
+                    <div class="bar" aria-hidden="true"><span id="answeredBar"></span></div>
+                </div>
+
+                @for (int n = 0; n < questions.Count; n++)
+                {
+                    var q = questions[n];
+                    var i = n + 1;
+                    var options = new[] { q.OptionA, q.OptionB, q.OptionC, q.OptionD };
+
+                    <fieldset class="q-card">
+                        <div class="q-num">Question @i of @questions.Count</div>
+                        <legend class="q-text">@q.Question</legend>
+
+                        <input type="hidden" name="qid_@i" value="@q.Id" />
+
+                        @for (int k = 0; k < 4; k++)
+                        {
+                            <label class="opt">
+                                <input type="radio" name="answer_@i" value="@options[k]" />
+                                <span class="opt-key">@letters[k]</span>
+                                <span class="opt-text">@options[k]</span>
+                            </label>
+                        }
+                    </fieldset>
+                }
+
+                <div class="quiz-bar">
+                    <span id="barLabel">Answer all questions, then submit.</span>
+                    <button type="submit" class="btn btn-brand btn-lg">
+                        <i class="bi bi-check2-circle"></i> Submit quiz
+                    </button>
+                </div>
+
+            </form>
+        }
+    </div>
+
+</div>
+
+@section Scripts {
+    <script>
+        (function() {
+            // ---- Copy summary ----
+            var copyBtn = document.getElementById('copySummary');
+            if (copyBtn) {
+                copyBtn.addEventListener('click', function() {
+                    var text = document.getElementById('summaryText').innerText.trim();
+                    var label = copyBtn.querySelector('span');
+
+                    function done() {
+                        label.textContent = 'Copied';
+                        setTimeout(function() { label.textContent = 'Copy'; }, 1800);
+                    }
+
+                    if (navigator.clipboard && window.isSecureContext) {
+                        navigator.clipboard.writeText(text).then(done);
+                    } else {
+                        var ta = document.createElement('textarea');
+                        ta.value = text;
+                        document.body.appendChild(ta);
+                        ta.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(ta);
+                        done();
+                    }
+                });
+            }
+
+            // ---- Quiz progress ----
+            var form = document.getElementById('quizForm');
+            if (form) {
+                var total = form.querySelectorAll('.q-card').length;
+                var label = document.getElementById('answeredLabel');
+                var bar = document.getElementById('answeredBar');
+
+                function update() {
+                    var answered = form.querySelectorAll('input[type=radio]:checked').length;
+                    label.textContent = answered + ' of ' + total + ' answered';
+                    bar.style.width = (total ? (answered / total) * 100 : 0) + '%';
+                }
+
+                form.addEventListener('change', update);
+
+                form.addEventListener('submit', function(e) {
+                    var answered = form.querySelectorAll('input[type=radio]:checked').length;
+                    if (answered < total) {
+                        var left = total - answered;
+                        var ok = window.confirm(left + (left === 1 ? ' question is' : ' questions are') +
+                            ' unanswered and will be marked wrong. Submit anyway?');
+                        if (!ok) { e.preventDefault(); }
+                    }
+                });
+
+                update();
+            }
+
+            // Open a tab from the URL hash, for example #quiz.
+            var hash = window.location.hash;
+            if (hash === '#notes' || hash === '#quiz') {
+                var trigger = document.querySelector('[data-bs-target="' + hash + '"]');
+                if (trigger) { bootstrap.Tab.getOrCreateInstance(trigger).show(); }
+            }
+        })();
+    </script>
+}
